@@ -386,11 +386,17 @@ async function runPhantombusterScript(webhookURL = null) {
     // Pobierz cookies
     const cookies = await context.cookies();
     
+    // Konwertuj cookies do formatu string (jak w przeglądarce)
+    const cookieString = cookies
+      .map(cookie => `${cookie.name}=${cookie.value}`)
+      .join('; ');
+    
     await browser.close();
     
     console.log('✅ ========================================');
     console.log('✅ KONTO UTWORZONE POMYŚLNIE!');
     console.log('✅ ========================================');
+    console.log('🍪 Cookies string:', cookieString);
     
     return {
       email,
@@ -399,7 +405,9 @@ async function runPhantombusterScript(webhookURL = null) {
       lastName,
       finalUrl,
       screenshot,
-      cookies: cookies.length,
+      cookies: cookies,           // Pełny array cookies
+      cookieString: cookieString, // String gotowy do użycia
+      cookiesCount: cookies.length,
       message: 'Konto PhantomBuster utworzone pomyślnie'
     };
     
@@ -419,3 +427,17 @@ async function runPhantombusterScript(webhookURL = null) {
 }
 
 module.exports = { runPhantombusterScript };
+
+// Test lokalny (opcjonalnie)
+if (require.main === module) {
+  console.log('🚀 Uruchamiam test...');
+  runPhantombusterScript()
+    .then(result => {
+      console.log('✅ GOTOWE!', result);
+      process.exit(0);
+    })
+    .catch(error => {
+      console.error('❌ BŁĄD:', error);
+      process.exit(1);
+    });
+}
