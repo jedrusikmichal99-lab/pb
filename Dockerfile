@@ -1,25 +1,35 @@
-FROM mcr.microsoft.com/playwright:v1.56.0-jammy
+FROM node:20-slim
+
+# Zainstaluj dependencies dla Playwright
+RUN apt-get update && apt-get install -y \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Kopiuj package files
 COPY package*.json ./
-
-# Instaluj dependencies
 RUN npm ci --only=production
 
-# Kopiuj resztę plików
 COPY . .
 
-# Instaluj przeglądarki Playwright
-RUN npx playwright install chromium
+# Zainstaluj tylko Chromium (bez wszystkich przeglądarek)
+RUN npx playwright install chromium --with-deps
 
-# Expose port
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start
 CMD ["node", "server.js"]
