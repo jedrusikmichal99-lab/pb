@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Zainstaluj dependencies dla Playwright
+# Zainstaluj dependencies dla Playwright + Playwright
 RUN apt-get update && apt-get install -y \
     libnss3 \
     libnspr4 \
@@ -15,17 +15,19 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libgbm1 \
     libasound2 \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/*
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --only=production
 
-COPY . .
+# Zainstaluj Chromium BEZ --with-deps (dependencies już zainstalowane wyżej)
+RUN npx playwright install chromium
 
-# Zainstaluj tylko Chromium (bez wszystkich przeglądarek)
-RUN npx playwright install chromium --with-deps
+COPY . .
 
 EXPOSE 3000
 
