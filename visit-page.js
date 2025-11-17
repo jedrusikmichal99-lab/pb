@@ -3,6 +3,7 @@ const { createCursor } = require('ghost-cursor-playwright');
 
 // ==================== GŁÓWNY SKRYPT ====================
 async function visitPageScript(targetUrl) {
+  const startTime = Date.now();
   console.log('🌐 ========================================');
   console.log('🌐 VISIT PAGE - Ghost-cursor automation');
   console.log('🌐 Target URL:', targetUrl);
@@ -60,17 +61,26 @@ async function visitPageScript(targetUrl) {
   
   try {
     console.log('🌐 Wchodzę na stronę:', targetUrl);
-    await page.goto(targetUrl, { waitUntil: 'networkidle' });
+    
+    // ZMIENIONE: domcontentloaded zamiast networkidle + dłuższy timeout
+    await page.goto(targetUrl, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 60000 // 60 sekund zamiast domyślnych 30
+    });
+    
     console.log('✅ Strona załadowana!');
+    
+    // Poczekaj chwilę na dodatkowe zasoby
+    await page.waitForTimeout(2000);
     
     // Symulacja czytania strony (scroll)
     console.log('👀 Symulacja czytania strony...');
     await page.mouse.wheel(0, 100);
-    await page.waitForTimeout(500 + Math.random() * 1000);
+    await page.waitForTimeout(500 + Math.random() * 500); // ZREDUKOWANE z 500-1500
     await page.mouse.wheel(0, -50);
-    await page.waitForTimeout(300 + Math.random() * 700);
+    await page.waitForTimeout(300 + Math.random() * 400); // ZREDUKOWANE z 300-1000
     
-    // Losowe naturalne ruchy myszką (3-6 razy)
+    // Losowe naturalne ruchy myszką (3-6 razy) - SZYBSZE
     const numberOfMoves = Math.floor(Math.random() * 4) + 3; // 3-6 ruchów
     console.log(`🖱️ Wykonuję ${numberOfMoves} naturalnych ruchów myszką...`);
     
@@ -82,29 +92,29 @@ async function visitPageScript(targetUrl) {
       
       await cursor.actions.move({ x, y });
       
-      // Losowa pauza między ruchami (2-5 sekund)
-      const pauseTime = 2000 + Math.random() * 3000;
+      // ZREDUKOWANA pauza między ruchami (500ms-1s zamiast 2-5s)
+      const pauseTime = 500 + Math.random() * 500;
       await page.waitForTimeout(pauseTime);
     }
     
     // Dodatkowy scroll w środku
     console.log('📜 Dodatkowy scroll...');
     await page.mouse.wheel(0, 200 + Math.random() * 300);
-    await page.waitForTimeout(1000 + Math.random() * 2000);
+    await page.waitForTimeout(500 + Math.random() * 500); // ZREDUKOWANE z 1000-3000
     
     // Jeszcze jeden losowy ruch
     await cursor.actions.move({ 
       x: 400 + Math.random() * 800, 
       y: 300 + Math.random() * 500 
     });
-    await page.waitForTimeout(500 + Math.random() * 1500);
+    await page.waitForTimeout(300 + Math.random() * 500); // ZREDUKOWANE z 500-2000
     
-    // Czekaj ~1 minutę z małą losowością (55-65 sekund)
-    const waitTime = 55000 + Math.random() * 10000;
+    // ZREDUKOWANY czas oczekiwania: 20-25 sekund zamiast 55-65 sekund
+    const waitTime = 20000 + Math.random() * 5000;
     console.log(`⏳ Czekam ${Math.round(waitTime/1000)} sekund na stronie...`);
     
     // Podziel czas oczekiwania na mniejsze kawałki z mini-aktywnościami
-    const chunks = 6;
+    const chunks = 4; // ZREDUKOWANE z 6 do 4
     const chunkTime = waitTime / chunks;
     
     for (let i = 0; i < chunks; i++) {
@@ -119,8 +129,11 @@ async function visitPageScript(targetUrl) {
       }
     }
     
+    const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    
     console.log('✅ ========================================');
     console.log('✅ WIZYTA ZAKOŃCZONA POMYŚLNIE!');
+    console.log(`✅ Czas wykonania: ${executionTime}s`);
     console.log('✅ ========================================');
     
     const finalUrl = page.url();
@@ -134,6 +147,7 @@ async function visitPageScript(targetUrl) {
       finalUrl,
       movesPerformed: numberOfMoves,
       timeSpent: Math.round(waitTime/1000),
+      executionTime: `${executionTime}s`,
       message: 'Strona odwiedzona pomyślnie'
     };
     
