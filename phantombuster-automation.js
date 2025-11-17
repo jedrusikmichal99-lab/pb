@@ -178,8 +178,9 @@ async function runPhantombusterScript(webhookURL = null) {
     
     await typeHumanLike(page, password);
     
-    await cursor.actions.move({ x: 600 + Math.random() * 300, y: 400 + Math.random() * 200 });
-    await page.waitForTimeout(1000 + Math.random() * 3000);
+    // Spokojniejszy ruch przed SUBMIT
+    await cursor.actions.move({ x: 500 + Math.random() * 200, y: 350 + Math.random() * 150 });
+    await page.waitForTimeout(1000 + Math.random() * 2000);
     
     // ========== SUBMIT ==========
     console.log('🔵 SUBMIT (ghost-cursor ONLY)...');
@@ -237,8 +238,9 @@ async function runPhantombusterScript(webhookURL = null) {
     console.log('⏳ Czekam 3 sekundy...');
     await page.waitForTimeout(3000);
     
-    await cursor.actions.move({ x: 300 + Math.random() * 700, y: 200 + Math.random() * 500 });
-    await page.waitForTimeout(1000 + Math.random() * 2000);
+    // Mały, spokojny ruch
+    await cursor.actions.move({ x: 400 + Math.random() * 300, y: 250 + Math.random() * 200 });
+    await page.waitForTimeout(1000 + Math.random() * 1500);
     
     // ========== POLA TEKSTOWE ==========
     console.log('✏️ Imię, Nazwisko, Company (ghost-cursor)...');
@@ -264,8 +266,9 @@ async function runPhantombusterScript(webhookURL = null) {
       });
       await typeHumanLike(page, firstName);
       
-      await cursor.actions.move({ x: 400 + Math.random() * 600, y: 300 + Math.random() * 400 });
-      await page.waitForTimeout(700 + Math.random() * 1300);
+      // Spokojniejszy ruch między polami
+      await cursor.actions.move({ x: 450 + Math.random() * 250, y: 300 + Math.random() * 200 });
+      await page.waitForTimeout(700 + Math.random() * 1000);
       
       console.log('✏️ Pole 2 (nazwisko)...');
       const box2 = await textInputs[1].boundingBox();
@@ -275,8 +278,9 @@ async function runPhantombusterScript(webhookURL = null) {
       });
       await typeHumanLike(page, lastName);
       
-      await cursor.actions.move({ x: 500 + Math.random() * 500, y: 350 + Math.random() * 350 });
-      await page.waitForTimeout(600 + Math.random() * 1400);
+      // Spokojniejszy ruch między polami
+      await cursor.actions.move({ x: 500 + Math.random() * 200, y: 350 + Math.random() * 150 });
+      await page.waitForTimeout(600 + Math.random() * 1000);
       
       console.log('✏️ Pole 3 (company)...');
       const box3 = await textInputs[2].boundingBox();
@@ -291,8 +295,9 @@ async function runPhantombusterScript(webhookURL = null) {
       console.log('⚠️ Za mało pól!');
     }
     
-    await cursor.actions.move({ x: 600 + Math.random() * 400, y: 400 + Math.random() * 300 });
-    await page.waitForTimeout(1500 + Math.random() * 2500);
+    // Spokojniejszy ruch przed SIGN UP - mniejszy zasięg!
+    await cursor.actions.move({ x: 550 + Math.random() * 200, y: 400 + Math.random() * 150 });
+    await page.waitForTimeout(1200 + Math.random() * 1800);
     
     // ========== SIGN UP ==========
     console.log('🔵 SIGN UP (ghost-cursor)...');
@@ -319,7 +324,8 @@ async function runPhantombusterScript(webhookURL = null) {
     if (radioButtons.length > 0) {
       console.log(`❓ ${radioButtons.length} opcji`);
       
-      await cursor.actions.move({ x: 400 + Math.random() * 600, y: 300 + Math.random() * 400 });
+      // Spokojniejszy ruch
+      await cursor.actions.move({ x: 450 + Math.random() * 300, y: 320 + Math.random() * 250 });
       await page.waitForTimeout(1500 + Math.random() * 1500);
       
       for (const radio of radioButtons) {
