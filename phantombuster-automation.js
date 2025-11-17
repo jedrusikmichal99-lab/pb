@@ -377,12 +377,6 @@ async function runPhantombusterScript(webhookURL = null) {
     const finalUrl = page.url();
     console.log('🌐 Aktualny URL:', finalUrl);
     
-    // Screenshot jako dowód
-    const screenshot = await page.screenshot({ 
-      encoding: 'base64',
-      fullPage: false 
-    });
-    
     // Pobierz cookies
     const cookies = await context.cookies();
     
@@ -404,7 +398,6 @@ async function runPhantombusterScript(webhookURL = null) {
       firstName,
       lastName,
       finalUrl,
-      screenshot,
       cookies: cookies,           // Pełny array cookies
       cookieString: cookieString, // String gotowy do użycia
       cookiesCount: cookies.length,
@@ -414,11 +407,6 @@ async function runPhantombusterScript(webhookURL = null) {
   } catch (error) {
     console.error('❌ BŁĄD:', error.message);
     console.log('🔍 Stack:', error.stack);
-    
-    const screenshot = await page.screenshot({ 
-      encoding: 'base64',
-      fullPage: true 
-    }).catch(() => null);
     
     await browser.close();
     

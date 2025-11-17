@@ -1,6 +1,7 @@
 const express = require('express');
 const { runPhantombusterScript } = require('./phantombuster-automation');
 const { visitPageScript } = require('./visit-page');
+const { loginPhantombuster } = require('./phantombuster-login');
 
 const app = express();
 app.use(express.json());
@@ -74,10 +75,45 @@ app.post('/visit-page', async (req, res) => {
   }
 });
 
+// ENDPOINT - logowanie do PhantomBuster
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  console.log(`[${new Date().toISOString()}] 🔐 Nowe żądanie logowania: ${email}`);
+  
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      error: 'Brak parametrów "email" lub "password" w żądaniu',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  try {
+    const result = await loginPhantombuster(email, password);
+    
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Błąd:`, error.message);
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API działa na porcie ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📍 Create account: POST http://localhost:${PORT}/create-account`);
   console.log(`📍 Visit page: POST http://localhost:${PORT}/visit-page`);
+  console.log(`🔍 Login: POST http://localhost:${PORT}/login`);
 });

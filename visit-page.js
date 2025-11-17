@@ -126,12 +126,6 @@ async function visitPageScript(targetUrl) {
     const finalUrl = page.url();
     console.log('🌐 Final URL:', finalUrl);
     
-    // Screenshot jako dowód
-    const screenshot = await page.screenshot({ 
-      encoding: 'base64',
-      fullPage: false 
-    });
-    
     await browser.close();
     
     return {
@@ -140,18 +134,12 @@ async function visitPageScript(targetUrl) {
       finalUrl,
       movesPerformed: numberOfMoves,
       timeSpent: Math.round(waitTime/1000),
-      screenshot,
       message: 'Strona odwiedzona pomyślnie'
     };
     
   } catch (error) {
     console.error('❌ BŁĄD:', error.message);
     console.log('🔍 Stack:', error.stack);
-    
-    const screenshot = await page.screenshot({ 
-      encoding: 'base64',
-      fullPage: true 
-    }).catch(() => null);
     
     await browser.close();
     
