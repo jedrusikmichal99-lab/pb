@@ -76,6 +76,26 @@ async function typeHumanLike(page, text) {
   await page.waitForTimeout(200 + Math.random() * 1800);
 }
 
+// ==================== FUNKCJA DO KLIKANIA Z LOSOWYM OFFSETEM ====================
+async function clickWithRandomOffset(cursor, box, waitBefore = [300, 800]) {
+  const centerX = box.x + (box.width / 2);
+  const centerY = box.y + (box.height / 2);
+  
+  // Losowy offset: ±20% szerokości/wysokości
+  const offsetX = (Math.random() - 0.5) * box.width * 0.4;
+  const offsetY = (Math.random() - 0.5) * box.height * 0.4;
+  
+  const clickX = centerX + offsetX;
+  const clickY = centerY + offsetY;
+  
+  console.log(`  📍 Klikam: (${Math.round(clickX)}, ${Math.round(clickY)}) [offset: ${Math.round(offsetX)}, ${Math.round(offsetY)}]`);
+  
+  await cursor.actions.click({ 
+    target: { x: clickX, y: clickY },
+    waitBeforeClick: waitBefore
+  });
+}
+
 // ==================== GŁÓWNY SKRYPT ====================
 async function runPhantombusterScript(webhookURL = null) {
   const { email, firstName } = generateEmail();
@@ -159,23 +179,22 @@ async function runPhantombusterScript(webhookURL = null) {
     
     // ========== EMAIL ==========
     console.log('✏️ Email (ghost-cursor ONLY)...');
-    await page.waitForSelector('input[type="email"]');
-    
-    await cursor.actions.click({ 
-      target: 'input[type="email"]',
-      waitBeforeClick: [200, 600]
+    const emailInput = await page.waitForSelector('input[type="email"]', {
+      state: 'visible',
+      timeout: 10000
     });
-    
+    const emailBox = await emailInput.boundingBox();
+    await clickWithRandomOffset(cursor, emailBox, [200, 600]);
     await typeHumanLike(page, email);
     
     // ========== HASŁO ==========
     console.log('✏️ Hasło (ghost-cursor ONLY)...');
-    
-    await cursor.actions.click({ 
-      target: 'input[type="password"]',
-      waitBeforeClick: [300, 700]
+    const passwordInput = await page.waitForSelector('input[type="password"]', {
+      state: 'visible',
+      timeout: 10000
     });
-    
+    const passwordBox = await passwordInput.boundingBox();
+    await clickWithRandomOffset(cursor, passwordBox, [300, 700]);
     await typeHumanLike(page, password);
     
     // Spokojniejszy ruch przed SUBMIT
@@ -183,13 +202,15 @@ async function runPhantombusterScript(webhookURL = null) {
     await page.waitForTimeout(1000 + Math.random() * 2000);
     
     // ========== SUBMIT ==========
-    console.log('🔵 SUBMIT (ghost-cursor ONLY)...');
+    console.log('🔵 SUBMIT (ghost-cursor z losowym offsetem)...');
     
     try {
-      await cursor.actions.click({ 
-        target: 'button:has-text("Start your 14-day free trial")',
-        waitBeforeClick: [300, 800]
+      const submitBtn = await page.waitForSelector('button:has-text("Start your 14-day free trial")', {
+        state: 'visible',
+        timeout: 10000
       });
+      const submitBox = await submitBtn.boundingBox();
+      await clickWithRandomOffset(cursor, submitBox, [300, 800]);
       console.log('  ✅ Kliknięto przycisk Submit!');
     } catch (e) {
       console.log('  ⚠️ Błąd 1, próbuję alternatywę...');
@@ -198,10 +219,7 @@ async function runPhantombusterScript(webhookURL = null) {
         const submitBtns = await page.$$('button[type="submit"]');
         if (submitBtns.length > 0) {
           const box = await submitBtns[0].boundingBox();
-          await cursor.actions.click({ 
-            target: box,
-            waitBeforeClick: [300, 800]
-          });
+          await clickWithRandomOffset(cursor, box, [300, 800]);
           console.log('  ✅ Kliknięto (boundingBox)!');
         }
       } catch (e2) {
@@ -223,11 +241,9 @@ async function runPhantombusterScript(webhookURL = null) {
       });
       
       if (cookieBtn) {
-        console.log('🍪 Klikam Allow all (ghost-cursor)...');
-        await cursor.actions.click({ 
-          target: 'button:has-text("Allow all")',
-          waitBeforeClick: [100, 400]
-        });
+        console.log('🍪 Klikam Allow all (ghost-cursor z offsetem)...');
+        const cookieBox = await cookieBtn.boundingBox();
+        await clickWithRandomOffset(cursor, cookieBox, [100, 400]);
         await page.waitForTimeout(1000);
         console.log('  ✅ Cookies OK!');
       }
@@ -260,10 +276,7 @@ async function runPhantombusterScript(webhookURL = null) {
     if (textInputs.length >= 3) {
       console.log('✏️ Pole 1 (imię)...');
       const box1 = await textInputs[0].boundingBox();
-      await cursor.actions.click({ 
-        target: box1,
-        waitBeforeClick: [300, 700]
-      });
+      await clickWithRandomOffset(cursor, box1, [300, 700]);
       await typeHumanLike(page, firstName);
       
       // Spokojniejszy ruch między polami
@@ -272,10 +285,7 @@ async function runPhantombusterScript(webhookURL = null) {
       
       console.log('✏️ Pole 2 (nazwisko)...');
       const box2 = await textInputs[1].boundingBox();
-      await cursor.actions.click({ 
-        target: box2,
-        waitBeforeClick: [250, 650]
-      });
+      await clickWithRandomOffset(cursor, box2, [250, 650]);
       await typeHumanLike(page, lastName);
       
       // Spokojniejszy ruch między polami
@@ -284,10 +294,7 @@ async function runPhantombusterScript(webhookURL = null) {
       
       console.log('✏️ Pole 3 (company)...');
       const box3 = await textInputs[2].boundingBox();
-      await cursor.actions.click({ 
-        target: box3,
-        waitBeforeClick: [250, 650]
-      });
+      await clickWithRandomOffset(cursor, box3, [250, 650]);
       await typeHumanLike(page, 'none');
       
       console.log('✅ Wszystkie pola OK!');
@@ -300,19 +307,17 @@ async function runPhantombusterScript(webhookURL = null) {
     await page.waitForTimeout(1200 + Math.random() * 1800);
     
     // ========== SIGN UP ==========
-    console.log('🔵 SIGN UP (ghost-cursor)...');
+    console.log('🔵 SIGN UP (ghost-cursor z losowym offsetem)...');
     try {
-      const signupBtn = await page.$('button:has-text("Sign up")');
-      if (signupBtn) {
-        const box = await signupBtn.boundingBox();
-        await cursor.actions.click({ 
-          target: box,
-          waitBeforeClick: [300, 800]
-        });
-        console.log('  ✅ Kliknięto Sign up!');
-      }
+      const signupBtn = await page.waitForSelector('button:has-text("Sign up")', {
+        state: 'visible',
+        timeout: 10000
+      });
+      const signupBox = await signupBtn.boundingBox();
+      await clickWithRandomOffset(cursor, signupBox, [300, 800]);
+      console.log('  ✅ Kliknięto Sign up!');
     } catch (e) {
-      console.log('  ⚠️ Nie znaleziono Sign up');
+      console.log('  ⚠️ Nie znaleziono Sign up:', e.message);
     }
     
     // ========== PYTANIA ==========
@@ -335,10 +340,7 @@ async function runPhantombusterScript(webhookURL = null) {
         if (text && !text.toLowerCase().includes('other')) {
           console.log(`✅ Wybieram: ${text.trim()}`);
           const radioBox = await radio.boundingBox();
-          await cursor.actions.click({ 
-            target: radioBox,
-            waitBeforeClick: [200, 600]
-          });
+          await clickWithRandomOffset(cursor, radioBox, [200, 600]);
           break;
         }
       }
@@ -348,10 +350,7 @@ async function runPhantombusterScript(webhookURL = null) {
       const nextBtn = await page.$('button:has-text("Continue"), button:has-text("Next"), button:has-text("Submit")');
       if (nextBtn) {
         const nextBox = await nextBtn.boundingBox();
-        await cursor.actions.click({ 
-          target: nextBox,
-          waitBeforeClick: [200, 600]
-        });
+        await clickWithRandomOffset(cursor, nextBox, [200, 600]);
         console.log('  ✅ Pytania OK!');
       }
     }
@@ -366,10 +365,7 @@ async function runPhantombusterScript(webhookURL = null) {
     if (browseBtn) {
       const box = await browseBtn.boundingBox();
       if (box) {
-        await cursor.actions.click({ 
-          target: box,
-          waitBeforeClick: [200, 600]
-        });
+        await clickWithRandomOffset(cursor, box, [200, 600]);
         console.log('  ✅ Kliknięto Browse!');
       }
     } else {

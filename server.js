@@ -110,10 +110,19 @@ app.post('/login', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+
+// Zapisz server do zmiennej i ustaw timeouty
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API działa na porcie ${PORT}`);
   console.log(`🔍 Health check: http://localhost:${PORT}/health`);
   console.log(`🔍 Create account: POST http://localhost:${PORT}/create-account`);
   console.log(`🔍 Visit page: POST http://localhost:${PORT}/visit-page`);
   console.log(`🔍 Login: POST http://localhost:${PORT}/login`);
 });
+
+// Zwiększ timeout do 4 minut (240 sekund)
+server.timeout = 240000;
+server.keepAliveTimeout = 240000;
+server.headersTimeout = 245000;
+
+console.log(`⏱️ Server timeout ustawiony na: ${server.timeout / 1000}s`);
