@@ -1,5 +1,6 @@
 const express = require('express');
 const { runPhantombusterScript } = require('./phantombuster-automation');
+const { visitPageScript } = require('./visit-page');
 
 const app = express();
 app.use(express.json());
@@ -39,9 +40,44 @@ app.post('/create-account', async (req, res) => {
   }
 });
 
+// NOWY ENDPOINT - odwiedza stronę
+app.post('/visit-page', async (req, res) => {
+  const { url } = req.body;
+  
+  console.log(`[${new Date().toISOString()}] 🚀 Nowe żądanie wizyty na stronie: ${url}`);
+  
+  if (!url) {
+    return res.status(400).json({
+      success: false,
+      error: 'Brak parametru "url" w żądaniu',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  try {
+    const result = await visitPageScript(url);
+    
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Błąd:`, error.message);
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API działa na porcie ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📍 Create account: POST http://localhost:${PORT}/create-account`);
+  console.log(`📍 Visit page: POST http://localhost:${PORT}/visit-page`);
 });
