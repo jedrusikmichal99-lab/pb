@@ -44,7 +44,7 @@ function generatePassword() {
   return password;
 }
 
-// ==================== LUDZKIE PISANIE ====================
+// ==================== LUDZKIE PISANIE - ORYGINALNE ====================
 async function typeHumanLike(page, text) {
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -76,7 +76,7 @@ async function typeHumanLike(page, text) {
   await page.waitForTimeout(200 + Math.random() * 1800);
 }
 
-// ==================== FUNKCJA DO KLIKANIA Z LOSOWYM OFFSETEM ====================
+// ==================== FUNKCJA DO KLIKANIA Z LOSOWYM OFFSETEM - ORYGINALNA ====================
 async function clickWithRandomOffset(cursor, box, waitBefore = [300, 800]) {
   const centerX = box.x + (box.width / 2);
   const centerY = box.y + (box.height / 2);
@@ -88,7 +88,7 @@ async function clickWithRandomOffset(cursor, box, waitBefore = [300, 800]) {
   const clickX = centerX + offsetX;
   const clickY = centerY + offsetY;
   
-  console.log(`  📍 Klikam: (${Math.round(clickX)}, ${Math.round(clickY)}) [offset: ${Math.round(offsetX)}, ${Math.round(offsetY)}]`);
+  console.log(`  🔹 Klikam: (${Math.round(clickX)}, ${Math.round(clickY)}) [offset: ${Math.round(offsetX)}, ${Math.round(offsetY)}]`);
   
   await cursor.actions.click({ 
     target: { x: clickX, y: clickY },
@@ -98,6 +98,7 @@ async function clickWithRandomOffset(cursor, box, waitBefore = [300, 800]) {
 
 // ==================== GŁÓWNY SKRYPT ====================
 async function runPhantombusterScript(webhookURL = null) {
+  const startTime = Date.now();
   const { email, firstName } = generateEmail();
   const lastName = generateLastName();
   const password = generatePassword();
@@ -167,15 +168,15 @@ async function runPhantombusterScript(webhookURL = null) {
     await page.waitForTimeout(500);
     await page.mouse.wheel(0, -50);
     
-    // Losowe ruchy myszy (ghost-cursor)
+    // ZREDUKOWANE ruchy myszy - max 1 sekunda
     await cursor.actions.move({ x: 300 + Math.random() * 600, y: 200 + Math.random() * 400 });
-    await page.waitForTimeout(3000 + Math.random() * 5000);
+    await page.waitForTimeout(500 + Math.random() * 500); // ZMNIEJSZONE z 3000-8000 → 500-1000
     
     await cursor.actions.move({ x: 400 + Math.random() * 500, y: 300 + Math.random() * 300 });
-    await page.waitForTimeout(800 + Math.random() * 2000);
+    await page.waitForTimeout(300 + Math.random() * 500); // ZMNIEJSZONE z 800-2800 → 300-800
     
     await cursor.actions.move({ x: 500 + Math.random() * 400, y: 250 + Math.random() * 350 });
-    await page.waitForTimeout(500 + Math.random() * 1500);
+    await page.waitForTimeout(200 + Math.random() * 500); // ZMNIEJSZONE z 500-2000 → 200-700
     
     // ========== EMAIL ==========
     console.log('✏️ Email (ghost-cursor ONLY)...');
@@ -197,9 +198,9 @@ async function runPhantombusterScript(webhookURL = null) {
     await clickWithRandomOffset(cursor, passwordBox, [300, 700]);
     await typeHumanLike(page, password);
     
-    // Spokojniejszy ruch przed SUBMIT
+    // ZREDUKOWANY ruch przed SUBMIT
     await cursor.actions.move({ x: 500 + Math.random() * 200, y: 350 + Math.random() * 150 });
-    await page.waitForTimeout(1000 + Math.random() * 2000);
+    await page.waitForTimeout(500 + Math.random() * 500); // ZMNIEJSZONE z 1000-3000 → 500-1000
     
     // ========== SUBMIT ==========
     console.log('🔵 SUBMIT (ghost-cursor z losowym offsetem)...');
@@ -229,7 +230,7 @@ async function runPhantombusterScript(webhookURL = null) {
     
     console.log('⏳ Czekam na załadowanie...');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000); // ZMNIEJSZONE z 3000 → 2000
     console.log('✅ Strona załadowana!');
     
     // ========== COOKIES ==========
@@ -244,19 +245,19 @@ async function runPhantombusterScript(webhookURL = null) {
         console.log('🍪 Klikam Allow all (ghost-cursor z offsetem)...');
         const cookieBox = await cookieBtn.boundingBox();
         await clickWithRandomOffset(cursor, cookieBox, [100, 400]);
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(800); // ZMNIEJSZONE z 1000 → 800
         console.log('  ✅ Cookies OK!');
       }
     } catch (e) {
       console.log('  ℹ️ Brak cookies');
     }
     
-    console.log('⏳ Czekam 3 sekundy...');
-    await page.waitForTimeout(3000);
+    console.log('⏳ Czekam 2 sekundy...');
+    await page.waitForTimeout(2000); // ZMNIEJSZONE z 3000 → 2000
     
-    // Mały, spokojny ruch
+    // ZREDUKOWANY ruch
     await cursor.actions.move({ x: 400 + Math.random() * 300, y: 250 + Math.random() * 200 });
-    await page.waitForTimeout(1000 + Math.random() * 1500);
+    await page.waitForTimeout(500 + Math.random() * 500); // ZMNIEJSZONE z 1000-2500 → 500-1000
     
     // ========== POLA TEKSTOWE ==========
     console.log('✏️ Imię, Nazwisko, Company (ghost-cursor)...');
@@ -279,18 +280,18 @@ async function runPhantombusterScript(webhookURL = null) {
       await clickWithRandomOffset(cursor, box1, [300, 700]);
       await typeHumanLike(page, firstName);
       
-      // Spokojniejszy ruch między polami
+      // ZREDUKOWANY ruch między polami
       await cursor.actions.move({ x: 450 + Math.random() * 250, y: 300 + Math.random() * 200 });
-      await page.waitForTimeout(700 + Math.random() * 1000);
+      await page.waitForTimeout(400 + Math.random() * 400); // ZMNIEJSZONE z 700-1700 → 400-800
       
       console.log('✏️ Pole 2 (nazwisko)...');
       const box2 = await textInputs[1].boundingBox();
       await clickWithRandomOffset(cursor, box2, [250, 650]);
       await typeHumanLike(page, lastName);
       
-      // Spokojniejszy ruch między polami
+      // ZREDUKOWANY ruch między polami
       await cursor.actions.move({ x: 500 + Math.random() * 200, y: 350 + Math.random() * 150 });
-      await page.waitForTimeout(600 + Math.random() * 1000);
+      await page.waitForTimeout(300 + Math.random() * 400); // ZMNIEJSZONE z 600-1600 → 300-700
       
       console.log('✏️ Pole 3 (company)...');
       const box3 = await textInputs[2].boundingBox();
@@ -302,9 +303,9 @@ async function runPhantombusterScript(webhookURL = null) {
       console.log('⚠️ Za mało pól!');
     }
     
-    // Spokojniejszy ruch przed SIGN UP - mniejszy zasięg!
+    // ZREDUKOWANY ruch przed SIGN UP
     await cursor.actions.move({ x: 550 + Math.random() * 200, y: 400 + Math.random() * 150 });
-    await page.waitForTimeout(1200 + Math.random() * 1800);
+    await page.waitForTimeout(600 + Math.random() * 600); // ZMNIEJSZONE z 1200-3000 → 600-1200
     
     // ========== SIGN UP ==========
     console.log('🔵 SIGN UP (ghost-cursor z losowym offsetem)...');
@@ -322,16 +323,16 @@ async function runPhantombusterScript(webhookURL = null) {
     
     // ========== PYTANIA ==========
     console.log('📋 Pytania...');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1500); // ZMNIEJSZONE z 2000 → 1500
     
     const radioButtons = await page.$$('input[type="radio"]');
     
     if (radioButtons.length > 0) {
       console.log(`❓ ${radioButtons.length} opcji`);
       
-      // Spokojniejszy ruch
+      // ZREDUKOWANY ruch
       await cursor.actions.move({ x: 450 + Math.random() * 300, y: 320 + Math.random() * 250 });
-      await page.waitForTimeout(1500 + Math.random() * 1500);
+      await page.waitForTimeout(700 + Math.random() * 500); // ZMNIEJSZONE z 1500-3000 → 700-1200
       
       for (const radio of radioButtons) {
         const parent = await radio.evaluateHandle(el => el.parentElement);
@@ -345,7 +346,7 @@ async function runPhantombusterScript(webhookURL = null) {
         }
       }
       
-      await page.waitForTimeout(1500 + Math.random() * 1000);
+      await page.waitForTimeout(800 + Math.random() * 400); // ZMNIEJSZONE z 1500-2500 → 800-1200
       
       const nextBtn = await page.$('button:has-text("Continue"), button:has-text("Next"), button:has-text("Submit")');
       if (nextBtn) {
@@ -355,8 +356,8 @@ async function runPhantombusterScript(webhookURL = null) {
       }
     }
     
-    console.log('⏳ Czekam 3 sekundy na załadowanie dashboardu...');
-    await page.waitForTimeout(3000);
+    console.log('⏳ Czekam 2 sekundy na załadowanie dashboardu...');
+    await page.waitForTimeout(2000); // ZMNIEJSZONE z 3000 → 2000
     
     // ========== BROWSE ==========
     console.log('🔍 Browse Phantoms...');
@@ -373,8 +374,8 @@ async function runPhantombusterScript(webhookURL = null) {
       await page.goto('https://phantombuster.com/phantombuster');
     }
     
-    console.log('⏳ Czekam 3 sekundy...');
-    await page.waitForTimeout(3000);
+    console.log('⏳ Czekam 2 sekundy...');
+    await page.waitForTimeout(2000); // ZMNIEJSZONE z 3000 → 2000
     
     const finalUrl = page.url();
     console.log('🌐 Aktualny URL:', finalUrl);
@@ -389,8 +390,11 @@ async function runPhantombusterScript(webhookURL = null) {
     
     await browser.close();
     
+    const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    
     console.log('✅ ========================================');
     console.log('✅ KONTO UTWORZONE POMYŚLNIE!');
+    console.log(`✅ Czas wykonania: ${executionTime}s`);
     console.log('✅ ========================================');
     console.log('🍪 Cookies string:', cookieString);
     
@@ -403,6 +407,7 @@ async function runPhantombusterScript(webhookURL = null) {
       cookies: cookies,           // Pełny array cookies
       cookieString: cookieString, // String gotowy do użycia
       cookiesCount: cookies.length,
+      executionTime: `${executionTime}s`,
       message: 'Konto PhantomBuster utworzone pomyślnie'
     };
     
