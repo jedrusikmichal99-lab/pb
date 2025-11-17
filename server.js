@@ -1,7 +1,7 @@
 const express = require('express');
 const { runPhantombusterScript } = require('./phantombuster-automation');
 const { visitPageScript } = require('./visit-page');
-const { loginPhantombuster } = require('./phantombuster-login');
+const { loginPhantombuster } = require('./pb-login');
 
 const app = express();
 app.use(express.json());
