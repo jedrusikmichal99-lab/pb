@@ -41,7 +41,7 @@ app.post('/create-account', async (req, res) => {
   }
 });
 
-// NOWY ENDPOINT - odwiedza stronę
+// ENDPOINT - odwiedza stronę
 app.post('/visit-page', async (req, res) => {
   const { url } = req.body;
   
@@ -112,8 +112,8 @@ app.post('/login', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API działa na porcie ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📍 Create account: POST http://localhost:${PORT}/create-account`);
-  console.log(`📍 Visit page: POST http://localhost:${PORT}/visit-page`);
+  console.log(`🔍 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔍 Create account: POST http://localhost:${PORT}/create-account`);
+  console.log(`🔍 Visit page: POST http://localhost:${PORT}/visit-page`);
   console.log(`🔍 Login: POST http://localhost:${PORT}/login`);
 });
