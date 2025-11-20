@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
 const { createCursor } = require('ghost-cursor-playwright');
+const fs = require('fs');
+const path = require('path');
 
 // ==================== GENERATORY ====================
 function generateEmail() {
@@ -44,7 +46,7 @@ function generatePassword() {
   return password;
 }
 
-// ==================== LUDZKIE PISANIE - ORYGINALNE ====================
+// ==================== LUDZKIE PISANIE ====================
 async function typeHumanLike(page, text) {
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -76,12 +78,34 @@ async function typeHumanLike(page, text) {
   await page.waitForTimeout(200 + Math.random() * 1800);
 }
 
-// ==================== FUNKCJA DO KLIKANIA Z LOSOWYM OFFSETEM ====================
+// ==================== DEBUG HELPER ====================
+async function debugSnapshot(page, stepName, isHeadless) {
+  const timestamp = Date.now();
+  const url = page.url();
+  
+  console.log(`📸 [${stepName}] URL: ${url}`);
+  
+  if (isHeadless) {
+    try {
+      // Zapisz screenshot tylko w headless (dla debugowania)
+      const screenshotPath = path.join('/tmp', `debug_${stepName}_${timestamp}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: false });
+      console.log(`   💾 Screenshot: ${screenshotPath}`);
+    } catch (e) {
+      console.log(`   ⚠️ Screenshot failed: ${e.message}`);
+    }
+  }
+  
+  // Sprawdź czy strona się załadowała
+  const bodyHTML = await page.content();
+  console.log(`   📄 HTML length: ${bodyHTML.length} chars`);
+}
+
+// ==================== KLIKANIE Z RETRY ====================
 async function clickWithRandomOffset(cursor, box, waitBefore = [100, 300]) {
   const centerX = box.x + (box.width / 2);
   const centerY = box.y + (box.height / 2);
   
-  // Losowy offset: ±20% szerokości/wysokości
   const offsetX = (Math.random() - 0.5) * box.width * 0.4;
   const offsetY = (Math.random() - 0.5) * box.height * 0.4;
   
@@ -96,6 +120,55 @@ async function clickWithRandomOffset(cursor, box, waitBefore = [100, 300]) {
   });
 }
 
+// ==================== UNIWERSALNA FUNKCJA WAIT & CLICK ====================
+async function waitAndClick(page, cursor, selector, stepName, maxRetries = 3, isHeadless = false) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔍 [${stepName}] Próba ${attempt}/${maxRetries}`);
+      
+      // Dłuższy timeout w headless
+      const timeout = isHeadless ? 15000 : 10000;
+      
+      const element = await page.waitForSelector(selector, {
+        state: 'visible',
+        timeout: timeout
+      });
+      
+      // Sprawdź czy element ma boundingBox
+      const box = await element.boundingBox();
+      
+      if (!box) {
+        console.log(`   ⚠️ Element nie ma boundingBox, czekam...`);
+        await page.waitForTimeout(2000);
+        continue;
+      }
+      
+      console.log(`   ✅ Element znaleziony: ${box.width}x${box.height}px`);
+      
+      // Kliknij z losowym offsetem
+      await clickWithRandomOffset(cursor, box, [100, 300]);
+      
+      console.log(`   ✅ [${stepName}] Sukces!`);
+      return true;
+      
+    } catch (error) {
+      console.log(`   ❌ [${stepName}] Próba ${attempt} nieudana: ${error.message}`);
+      
+      if (attempt === maxRetries) {
+        // Ostatnia próba - zrób debug snapshot
+        await debugSnapshot(page, `ERROR_${stepName}`, isHeadless);
+        throw new Error(`[${stepName}] Nie udało się po ${maxRetries} próbach: ${error.message}`);
+      }
+      
+      // Czekaj przed kolejną próbą
+      const waitTime = isHeadless ? 3000 : 2000;
+      await page.waitForTimeout(waitTime);
+    }
+  }
+  
+  return false;
+}
+
 // ==================== GŁÓWNY SKRYPT ====================
 async function runPhantombusterScript(webhookURL = null) {
   const startTime = Date.now();
@@ -103,20 +176,28 @@ async function runPhantombusterScript(webhookURL = null) {
   const lastName = generateLastName();
   const password = generatePassword();
   
-  console.log('🥷 GHOST-CURSOR ONLY - Automatyzacja Phantombuster (OPTIMIZED <60s)');
+  // Wykryj czy headless
+  const isHeadless = process.env.HEADLESS !== 'false';
+  
+  console.log('🥷 GHOST-CURSOR - Automatyzacja Phantombuster v2.0');
+  console.log(`🖥️  Mode: ${isHeadless ? 'HEADLESS' : 'VISIBLE'}`);
   console.log('📧 Email:', email);
   console.log('👤 Imię:', firstName);
   console.log('👤 Nazwisko:', lastName);
   console.log('🔑 Hasło:', password);
   
   const browser = await chromium.launch({
-    headless: true, // TRUE dla serwera!
+    headless: isHeadless,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-blink-features=AutomationControlled',
-      '--disable-gpu'
+      '--disable-gpu',
+      // Dodatkowe flagi dla headless
+      '--window-size=1920,1080',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-site-isolation-trials'
     ]
   });
   
@@ -133,7 +214,7 @@ async function runPhantombusterScript(webhookURL = null) {
   const cursor = await createCursor(page);
   console.log('✅ Ghost-cursor aktywny!');
   
-  // Anti-detection
+  // Enhanced Anti-detection
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', {
       get: () => false,
@@ -142,6 +223,24 @@ async function runPhantombusterScript(webhookURL = null) {
     delete navigator.__proto__.webdriver;
     
     window.chrome = { runtime: {} };
+    
+    // Ukryj headless
+    Object.defineProperty(navigator, 'headless', {
+      get: () => false,
+    });
+    
+    // Dodaj realistyczne właściwości
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      get: () => 8,
+    });
+    
+    Object.defineProperty(screen, 'width', {
+      get: () => 1920,
+    });
+    
+    Object.defineProperty(screen, 'height', {
+      get: () => 1080,
+    });
     
     const originalQuery = window.navigator.permissions.query;
     window.navigator.permissions.query = (parameters) => (
@@ -160,101 +259,108 @@ async function runPhantombusterScript(webhookURL = null) {
   });
   
   try {
+    // ========== KROK 1: NAWIGACJA ==========
     console.log('🌐 Idę na PhantomBuster...');
-    await page.goto('https://phantombuster.com/signup', { waitUntil: 'networkidle' });
+    await page.goto('https://phantombuster.com/signup', { 
+      waitUntil: 'networkidle',
+      timeout: 30000
+    });
+    await debugSnapshot(page, 'after_navigation', isHeadless);
     
     console.log('👀 Symulacja czytania strony...');
     await page.mouse.wheel(0, 100);
     await page.waitForTimeout(300);
     await page.mouse.wheel(0, -50);
     
-    // ⚡ ZOPTYMALIZOWANE ruchy myszy - TYLKO 1 ruch, max 400ms
+    // Ruch myszy
     await cursor.actions.move({ x: 400 + Math.random() * 400, y: 300 + Math.random() * 300 });
-    await page.waitForTimeout(200 + Math.random() * 200); // 200-400ms TOTAL
+    await page.waitForTimeout(isHeadless ? 500 : 300);
     
-    // ========== EMAIL ==========
-    console.log('✏️ Email (ghost-cursor ONLY)...');
-    const emailInput = await page.waitForSelector('input[type="email"]', {
-      state: 'visible',
-      timeout: 10000
-    });
-    const emailBox = await emailInput.boundingBox();
-    await clickWithRandomOffset(cursor, emailBox, [100, 250]); // SKRÓCONE z [200,600]
+    // ========== KROK 2: EMAIL ==========
+    console.log('✏️ Email...');
+    await waitAndClick(page, cursor, 'input[type="email"]', 'EMAIL_FIELD', 3, isHeadless);
+    await page.waitForTimeout(300);
     await typeHumanLike(page, email);
+    await debugSnapshot(page, 'after_email', isHeadless);
     
-    // ========== HASŁO ==========
-    console.log('✏️ Hasło (ghost-cursor ONLY)...');
-    const passwordInput = await page.waitForSelector('input[type="password"]', {
-      state: 'visible',
-      timeout: 10000
-    });
-    const passwordBox = await passwordInput.boundingBox();
-    await clickWithRandomOffset(cursor, passwordBox, [100, 250]); // SKRÓCONE z [300,700]
+    // ========== KROK 3: HASŁO ==========
+    console.log('✏️ Hasło...');
+    await waitAndClick(page, cursor, 'input[type="password"]', 'PASSWORD_FIELD', 3, isHeadless);
+    await page.waitForTimeout(300);
     await typeHumanLike(page, password);
+    await debugSnapshot(page, 'after_password', isHeadless);
     
-    // ⚡ SKRÓCONY ruch przed SUBMIT
+    // Ruch przed submit
     await cursor.actions.move({ x: 500 + Math.random() * 150, y: 350 + Math.random() * 100 });
-    await page.waitForTimeout(150 + Math.random() * 150); // 150-300ms (było 500-1000ms)
+    await page.waitForTimeout(isHeadless ? 300 : 200);
     
-    // ========== SUBMIT ==========
-    console.log('🔵 SUBMIT (ghost-cursor z losowym offsetem)...');
+    // ========== KROK 4: SUBMIT ==========
+    console.log('🔵 SUBMIT...');
     
+    // Próba 1: Tekst przycisku
+    let submitSuccess = false;
     try {
-      const submitBtn = await page.waitForSelector('button:has-text("Start your 14-day free trial")', {
-        state: 'visible',
-        timeout: 10000
-      });
-      const submitBox = await submitBtn.boundingBox();
-      await clickWithRandomOffset(cursor, submitBox, [100, 300]); // SKRÓCONE z [300,800]
-      console.log('  ✅ Kliknięto przycisk Submit!');
+      await waitAndClick(page, cursor, 'button:has-text("Start your 14-day free trial")', 'SUBMIT_BTN', 2, isHeadless);
+      submitSuccess = true;
     } catch (e) {
-      console.log('  ⚠️ Błąd 1, próbuję alternatywę...');
-      
+      console.log('⚠️ Metoda 1 nieudana, próbuję type=submit...');
+    }
+    
+    // Próba 2: Typ submit
+    if (!submitSuccess) {
       try {
         const submitBtns = await page.$$('button[type="submit"]');
         if (submitBtns.length > 0) {
           const box = await submitBtns[0].boundingBox();
-          await clickWithRandomOffset(cursor, box, [100, 300]);
-          console.log('  ✅ Kliknięto (boundingBox)!');
+          if (box) {
+            await clickWithRandomOffset(cursor, box, [100, 300]);
+            submitSuccess = true;
+            console.log('✅ Kliknięto type=submit');
+          }
         }
       } catch (e2) {
-        console.log('  ❌ Nie udało się kliknąć Submit:', e2.message);
+        console.log('❌ Submit failed:', e2.message);
       }
     }
     
+    // Czekaj na przejście
     console.log('⏳ Czekam na załadowanie...');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000); // SKRÓCONE z 2000ms
-    console.log('✅ Strona załadowana!');
+    await page.waitForLoadState('domcontentloaded', { timeout: 20000 });
+    await page.waitForTimeout(isHeadless ? 2000 : 1000);
+    await debugSnapshot(page, 'after_submit', isHeadless);
     
-    // ========== COOKIES ==========
+    // ========== KROK 5: COOKIES ==========
     try {
       console.log('🍪 Cookies...');
       const cookieBtn = await page.waitForSelector('button:has-text("Allow all")', { 
-        timeout: 2000, // SKRÓCONE z 3000ms
+        timeout: isHeadless ? 5000 : 3000,
         state: 'visible'
       });
       
       if (cookieBtn) {
-        console.log('🍪 Klikam Allow all (ghost-cursor z offsetem)...');
         const cookieBox = await cookieBtn.boundingBox();
-        await clickWithRandomOffset(cursor, cookieBox, [50, 200]); // SKRÓCONE z [100,400]
-        await page.waitForTimeout(500); // SKRÓCONE z 800ms
-        console.log('  ✅ Cookies OK!');
+        if (cookieBox) {
+          await clickWithRandomOffset(cursor, cookieBox, [50, 200]);
+          await page.waitForTimeout(500);
+          console.log('✅ Cookies OK!');
+        }
       }
     } catch (e) {
-      console.log('  ℹ️ Brak cookies');
+      console.log('ℹ️ Brak cookies modal');
     }
     
-    console.log('⏳ Czekam 1 sekundę...');
-    await page.waitForTimeout(1000); // SKRÓCONE z 2000ms
+    await page.waitForTimeout(isHeadless ? 2000 : 1000);
+    await debugSnapshot(page, 'after_cookies', isHeadless);
     
-    // ⚡ SKRÓCONY ruch - tylko 1 ruch zamiast wielu
+    // Ruch myszy
     await cursor.actions.move({ x: 450 + Math.random() * 200, y: 300 + Math.random() * 150 });
-    await page.waitForTimeout(150 + Math.random() * 150); // 150-300ms (było 500-1000ms)
+    await page.waitForTimeout(200);
     
-    // ========== POLA TEKSTOWE ==========
-    console.log('✏️ Imię, Nazwisko, Company (ghost-cursor)...');
+    // ========== KROK 6: POLA TEKSTOWE ==========
+    console.log('✏️ Imię, Nazwisko, Company...');
+    
+    // Dłuższy timeout na pola w headless
+    await page.waitForTimeout(isHeadless ? 3000 : 1500);
     
     const allInputs = await page.$$('input');
     const textInputs = [];
@@ -269,64 +375,66 @@ async function runPhantombusterScript(webhookURL = null) {
     console.log(`📋 Pól TEXT: ${textInputs.length}`);
     
     if (textInputs.length >= 3) {
+      // Pole 1 - Imię
       console.log('✏️ Pole 1 (imię)...');
       const box1 = await textInputs[0].boundingBox();
-      await clickWithRandomOffset(cursor, box1, [100, 250]); // SKRÓCONE z [300,700]
-      await typeHumanLike(page, firstName);
+      if (box1) {
+        await clickWithRandomOffset(cursor, box1, [100, 250]);
+        await page.waitForTimeout(300);
+        await typeHumanLike(page, firstName);
+      }
       
-      // ⚡ SKRÓCONY ruch między polami
       await cursor.actions.move({ x: 480 + Math.random() * 150, y: 320 + Math.random() * 120 });
-      await page.waitForTimeout(150 + Math.random() * 150); // 150-300ms (było 400-800ms)
+      await page.waitForTimeout(200);
       
+      // Pole 2 - Nazwisko
       console.log('✏️ Pole 2 (nazwisko)...');
       const box2 = await textInputs[1].boundingBox();
-      await clickWithRandomOffset(cursor, box2, [100, 250]); // SKRÓCONE z [250,650]
-      await typeHumanLike(page, lastName);
+      if (box2) {
+        await clickWithRandomOffset(cursor, box2, [100, 250]);
+        await page.waitForTimeout(300);
+        await typeHumanLike(page, lastName);
+      }
       
-      // ⚡ SKRÓCONY ruch między polami
       await cursor.actions.move({ x: 520 + Math.random() * 120, y: 360 + Math.random() * 100 });
-      await page.waitForTimeout(100 + Math.random() * 150); // 100-250ms (było 300-700ms)
+      await page.waitForTimeout(200);
       
+      // Pole 3 - Company
       console.log('✏️ Pole 3 (company)...');
       const box3 = await textInputs[2].boundingBox();
-      await clickWithRandomOffset(cursor, box3, [100, 250]); // SKRÓCONE z [250,650]
-      await typeHumanLike(page, 'none');
+      if (box3) {
+        await clickWithRandomOffset(cursor, box3, [100, 250]);
+        await page.waitForTimeout(300);
+        await typeHumanLike(page, 'none');
+      }
       
       console.log('✅ Wszystkie pola OK!');
     } else {
-      console.log('⚠️ Za mało pól!');
+      console.log('⚠️ Za mało pól tekstowych!');
     }
     
-    // ⚡ SKRÓCONY ruch przed SIGN UP
+    await debugSnapshot(page, 'after_text_fields', isHeadless);
+    
+    // Ruch przed Sign Up
     await cursor.actions.move({ x: 560 + Math.random() * 150, y: 420 + Math.random() * 100 });
-    await page.waitForTimeout(200 + Math.random() * 200); // 200-400ms (było 600-1200ms)
+    await page.waitForTimeout(isHeadless ? 400 : 300);
     
-    // ========== SIGN UP ==========
-    console.log('🔵 SIGN UP (ghost-cursor z losowym offsetem)...');
-    try {
-      const signupBtn = await page.waitForSelector('button:has-text("Sign up")', {
-        state: 'visible',
-        timeout: 10000
-      });
-      const signupBox = await signupBtn.boundingBox();
-      await clickWithRandomOffset(cursor, signupBox, [100, 300]); // SKRÓCONE z [300,800]
-      console.log('  ✅ Kliknięto Sign up!');
-    } catch (e) {
-      console.log('  ⚠️ Nie znaleziono Sign up:', e.message);
-    }
+    // ========== KROK 7: SIGN UP ==========
+    console.log('🔵 SIGN UP...');
+    await waitAndClick(page, cursor, 'button:has-text("Sign up")', 'SIGNUP_BTN', 3, isHeadless);
     
-    // ========== PYTANIA ==========
+    // ========== KROK 8: PYTANIA ==========
     console.log('📋 Pytania...');
-    await page.waitForTimeout(1000); // SKRÓCONE z 1500ms
+    await page.waitForTimeout(isHeadless ? 2000 : 1000);
+    await debugSnapshot(page, 'questions_page', isHeadless);
     
     const radioButtons = await page.$$('input[type="radio"]');
     
     if (radioButtons.length > 0) {
       console.log(`❓ ${radioButtons.length} opcji`);
       
-      // ⚡ SKRÓCONY ruch
       await cursor.actions.move({ x: 480 + Math.random() * 200, y: 350 + Math.random() * 180 });
-      await page.waitForTimeout(200 + Math.random() * 200); // 200-400ms (było 700-1200ms)
+      await page.waitForTimeout(isHeadless ? 500 : 300);
       
       for (const radio of radioButtons) {
         const parent = await radio.evaluateHandle(el => el.parentElement);
@@ -335,49 +443,52 @@ async function runPhantombusterScript(webhookURL = null) {
         if (text && !text.toLowerCase().includes('other')) {
           console.log(`✅ Wybieram: ${text.trim()}`);
           const radioBox = await radio.boundingBox();
-          await clickWithRandomOffset(cursor, radioBox, [100, 250]); // SKRÓCONE z [200,600]
+          if (radioBox) {
+            await clickWithRandomOffset(cursor, radioBox, [100, 250]);
+          }
           break;
         }
       }
       
-      await page.waitForTimeout(300 + Math.random() * 200); // 300-500ms (było 800-1200ms)
+      await page.waitForTimeout(isHeadless ? 800 : 500);
       
       const nextBtn = await page.$('button:has-text("Continue"), button:has-text("Next"), button:has-text("Submit")');
       if (nextBtn) {
         const nextBox = await nextBtn.boundingBox();
-        await clickWithRandomOffset(cursor, nextBox, [100, 250]); // SKRÓCONE z [200,600]
-        console.log('  ✅ Pytania OK!');
+        if (nextBox) {
+          await clickWithRandomOffset(cursor, nextBox, [100, 250]);
+          console.log('✅ Pytania OK!');
+        }
       }
     }
     
-    console.log('⏳ Czekam 1 sekundę na załadowanie dashboardu...');
-    await page.waitForTimeout(1000); // SKRÓCONE z 2000ms
+    await page.waitForTimeout(isHeadless ? 2000 : 1000);
+    await debugSnapshot(page, 'after_questions', isHeadless);
     
-    // ========== BROWSE ==========
+    // ========== KROK 9: BROWSE ==========
     console.log('🔍 Browse Phantoms...');
     const browseBtn = await page.$('a:has-text("Browse"), button:has-text("Browse")');
     
     if (browseBtn) {
       const box = await browseBtn.boundingBox();
       if (box) {
-        await clickWithRandomOffset(cursor, box, [100, 250]); // SKRÓCONE z [200,600]
-        console.log('  ✅ Kliknięto Browse!');
+        await clickWithRandomOffset(cursor, box, [100, 250]);
+        console.log('✅ Kliknięto Browse!');
       }
     } else {
-      console.log('  ⚠️ Nie znaleziono, idę do URL...');
-      await page.goto('https://phantombuster.com/phantombuster');
+      console.log('⚠️ Nie znaleziono Browse, próbuję URL...');
+      await page.goto('https://phantombuster.com/phantombuster', { timeout: 20000 });
     }
     
-    console.log('⏳ Czekam 1 sekundę...');
-    await page.waitForTimeout(1000); // SKRÓCONE z 2000ms
+    await page.waitForTimeout(isHeadless ? 2000 : 1000);
     
     const finalUrl = page.url();
-    console.log('🌐 Aktualny URL:', finalUrl);
+    console.log('🌐 Final URL:', finalUrl);
+    
+    await debugSnapshot(page, 'final_page', isHeadless);
     
     // Pobierz cookies
     const cookies = await context.cookies();
-    
-    // Konwertuj cookies do formatu string (jak w przeglądarce)
     const cookieString = cookies
       .map(cookie => `${cookie.name}=${cookie.value}`)
       .join('; ');
@@ -390,7 +501,7 @@ async function runPhantombusterScript(webhookURL = null) {
     console.log('✅ KONTO UTWORZONE POMYŚLNIE!');
     console.log(`✅ Czas wykonania: ${executionTime}s`);
     console.log('✅ ========================================');
-    console.log('🍪 Cookies string:', cookieString);
+    console.log('🍪 Cookies count:', cookies.length);
     
     return {
       email,
@@ -398,16 +509,23 @@ async function runPhantombusterScript(webhookURL = null) {
       firstName,
       lastName,
       finalUrl,
-      cookies: cookies,           // Pełny array cookies
-      cookieString: cookieString, // String gotowy do użycia
+      cookies: cookies,
+      cookieString: cookieString,
       cookiesCount: cookies.length,
       executionTime: `${executionTime}s`,
       message: 'Konto PhantomBuster utworzone pomyślnie'
     };
     
   } catch (error) {
-    console.error('❌ BŁĄD:', error.message);
+    console.error('❌ BŁĄD KRYTYCZNY:', error.message);
     console.log('🔍 Stack:', error.stack);
+    
+    // Final debug snapshot
+    try {
+      await debugSnapshot(page, 'CRITICAL_ERROR', isHeadless);
+    } catch (e) {
+      console.log('⚠️ Nie można zrobić error snapshot');
+    }
     
     await browser.close();
     
@@ -417,7 +535,7 @@ async function runPhantombusterScript(webhookURL = null) {
 
 module.exports = { runPhantombusterScript };
 
-// Test lokalny (opcjonalnie)
+// Test lokalny
 if (require.main === module) {
   console.log('🚀 Uruchamiam test...');
   runPhantombusterScript()
