@@ -1,7 +1,5 @@
 const { chromium } = require('playwright');
 const { createCursor } = require('ghost-cursor-playwright');
-const fs = require('fs');
-const path = require('path');
 
 // ==================== GENERATORY ====================
 function generateEmail() {
@@ -34,19 +32,15 @@ function generateLastName() {
 function generatePassword() {
   const lowercase = 'abcdefghijklmnopqrstuvwxyz';
   const numbers = '0123456789';
-  
   let password = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-  
   for (let i = 0; i < 8; i++) {
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
   }
-  
   password += numbers[Math.floor(Math.random() * numbers.length)];
-  
   return password;
 }
 
-// ==================== LUDZKIE PISANIE ====================
+// ==================== LUDZKIE PISANIE (ORYGINALNE) ====================
 async function typeHumanLike(page, text) {
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -78,41 +72,14 @@ async function typeHumanLike(page, text) {
   await page.waitForTimeout(200 + Math.random() * 1800);
 }
 
-// ==================== DEBUG HELPER ====================
-async function debugSnapshot(page, stepName, isHeadless) {
-  const timestamp = Date.now();
-  const url = page.url();
-  
-  console.log(`📸 [${stepName}] URL: ${url}`);
-  
-  if (isHeadless) {
-    try {
-      // Zapisz screenshot tylko w headless (dla debugowania)
-      const screenshotPath = path.join('/tmp', `debug_${stepName}_${timestamp}.png`);
-      await page.screenshot({ path: screenshotPath, fullPage: false });
-      console.log(`   💾 Screenshot: ${screenshotPath}`);
-    } catch (e) {
-      console.log(`   ⚠️ Screenshot failed: ${e.message}`);
-    }
-  }
-  
-  // Sprawdź czy strona się załadowała
-  const bodyHTML = await page.content();
-  console.log(`   📄 HTML length: ${bodyHTML.length} chars`);
-}
-
-// ==================== KLIKANIE Z RETRY ====================
+// ==================== KLIKANIE ====================
 async function clickWithRandomOffset(cursor, box, waitBefore = [100, 300]) {
   const centerX = box.x + (box.width / 2);
   const centerY = box.y + (box.height / 2);
-  
   const offsetX = (Math.random() - 0.5) * box.width * 0.4;
   const offsetY = (Math.random() - 0.5) * box.height * 0.4;
-  
   const clickX = centerX + offsetX;
   const clickY = centerY + offsetY;
-  
-  console.log(`  🔹 Klikam: (${Math.round(clickX)}, ${Math.round(clickY)}) [offset: ${Math.round(offsetX)}, ${Math.round(offsetY)}]`);
   
   await cursor.actions.click({ 
     target: { x: clickX, y: clickY },
@@ -120,71 +87,27 @@ async function clickWithRandomOffset(cursor, box, waitBefore = [100, 300]) {
   });
 }
 
-// ==================== UNIWERSALNA FUNKCJA WAIT & CLICK ====================
-async function waitAndClick(page, cursor, selector, stepName, maxRetries = 3, isHeadless = false) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🔍 [${stepName}] Próba ${attempt}/${maxRetries}`);
-      
-      // Dłuższy timeout w headless
-      const timeout = isHeadless ? 15000 : 10000;
-      
-      const element = await page.waitForSelector(selector, {
-        state: 'visible',
-        timeout: timeout
-      });
-      
-      // Sprawdź czy element ma boundingBox
-      const box = await element.boundingBox();
-      
-      if (!box) {
-        console.log(`   ⚠️ Element nie ma boundingBox, czekam...`);
-        await page.waitForTimeout(2000);
-        continue;
-      }
-      
-      console.log(`   ✅ Element znaleziony: ${box.width}x${box.height}px`);
-      
-      // Kliknij z losowym offsetem
-      await clickWithRandomOffset(cursor, box, [100, 300]);
-      
-      console.log(`   ✅ [${stepName}] Sukces!`);
-      return true;
-      
-    } catch (error) {
-      console.log(`   ❌ [${stepName}] Próba ${attempt} nieudana: ${error.message}`);
-      
-      if (attempt === maxRetries) {
-        // Ostatnia próba - zrób debug snapshot
-        await debugSnapshot(page, `ERROR_${stepName}`, isHeadless);
-        throw new Error(`[${stepName}] Nie udało się po ${maxRetries} próbach: ${error.message}`);
-      }
-      
-      // Czekaj przed kolejną próbą
-      const waitTime = isHeadless ? 3000 : 2000;
-      await page.waitForTimeout(waitTime);
-    }
+async function waitAndClick(page, cursor, selector, stepName, timeout = 10000) {
+  const element = await page.waitForSelector(selector, { state: 'visible', timeout });
+  const box = await element.boundingBox();
+  if (box) {
+    await clickWithRandomOffset(cursor, box, [100, 300]);
+    console.log(`✅ [${stepName}] OK`);
   }
-  
-  return false;
 }
 
 // ==================== GŁÓWNY SKRYPT ====================
-async function runPhantombusterScript(webhookURL = null) {
+async function runPhantombusterScript() {
   const startTime = Date.now();
   const { email, firstName } = generateEmail();
   const lastName = generateLastName();
   const password = generatePassword();
-  
-  // Wykryj czy headless
   const isHeadless = process.env.HEADLESS !== 'false';
   
-  console.log('🥷 GHOST-CURSOR - Automatyzacja Phantombuster v2.0');
-  console.log(`🖥️  Mode: ${isHeadless ? 'HEADLESS' : 'VISIBLE'}`);
+  console.log('🥷 PhantomBuster Automation v3.0 (FAST)');
+  console.log(`🖥️ Mode: ${isHeadless ? 'HEADLESS' : 'VISIBLE'}`);
   console.log('📧 Email:', email);
-  console.log('👤 Imię:', firstName);
-  console.log('👤 Nazwisko:', lastName);
-  console.log('🔑 Hasło:', password);
+  console.log('🔑 Password:', password);
   
   const browser = await chromium.launch({
     headless: isHeadless,
@@ -194,10 +117,7 @@ async function runPhantombusterScript(webhookURL = null) {
       '--disable-dev-shm-usage',
       '--disable-blink-features=AutomationControlled',
       '--disable-gpu',
-      // Dodatkowe flagi dla headless
-      '--window-size=1920,1080',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-site-isolation-trials'
+      '--window-size=1920,1080'
     ]
   });
   
@@ -209,169 +129,84 @@ async function runPhantombusterScript(webhookURL = null) {
   });
   
   const page = await context.newPage();
-  
-  // 🚀 GHOST-CURSOR
   const cursor = await createCursor(page);
   console.log('✅ Ghost-cursor aktywny!');
   
-  // Enhanced Anti-detection
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => false,
-    });
-    
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
     delete navigator.__proto__.webdriver;
-    
     window.chrome = { runtime: {} };
-    
-    // Ukryj headless
-    Object.defineProperty(navigator, 'headless', {
-      get: () => false,
-    });
-    
-    // Dodaj realistyczne właściwości
-    Object.defineProperty(navigator, 'hardwareConcurrency', {
-      get: () => 8,
-    });
-    
-    Object.defineProperty(screen, 'width', {
-      get: () => 1920,
-    });
-    
-    Object.defineProperty(screen, 'height', {
-      get: () => 1080,
-    });
-    
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) => (
-      parameters.name === 'notifications' ?
-        Promise.resolve({ state: Notification.permission }) :
-        originalQuery(parameters)
-    );
-    
-    Object.defineProperty(navigator, 'plugins', {
-      get: () => [1, 2, 3, 4, 5],
-    });
-    
-    Object.defineProperty(navigator, 'languages', {
-      get: () => ['en-US', 'en'],
-    });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
   });
   
   try {
-    // ========== KROK 1: NAWIGACJA ==========
+    // KROK 1: NAWIGACJA
     console.log('🌐 Idę na PhantomBuster...');
-    await page.goto('https://phantombuster.com/signup', { 
-      waitUntil: 'networkidle',
-      timeout: 30000
-    });
-    await debugSnapshot(page, 'after_navigation', isHeadless);
+    await page.goto('https://phantombuster.com/signup', { waitUntil: 'networkidle', timeout: 20000 });
     
     console.log('👀 Symulacja czytania strony...');
     await page.mouse.wheel(0, 100);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(150);
     await page.mouse.wheel(0, -50);
     
-    // Ruch myszy
     await cursor.actions.move({ x: 400 + Math.random() * 400, y: 300 + Math.random() * 300 });
-    await page.waitForTimeout(isHeadless ? 500 : 300);
+    await page.waitForTimeout(100 + Math.random() * 150);
     
-    // ========== KROK 2: EMAIL ==========
+    // KROK 2: EMAIL
     console.log('✏️ Email...');
-    await waitAndClick(page, cursor, 'input[type="email"]', 'EMAIL_FIELD', 3, isHeadless);
-    await page.waitForTimeout(300);
+    await waitAndClick(page, cursor, 'input[type="email"]', 'EMAIL');
+    await page.waitForTimeout(150);
     await typeHumanLike(page, email);
-    await debugSnapshot(page, 'after_email', isHeadless);
     
-    // ========== KROK 3: HASŁO ==========
-    console.log('✏️ Hasło...');
-    await waitAndClick(page, cursor, 'input[type="password"]', 'PASSWORD_FIELD', 3, isHeadless);
-    await page.waitForTimeout(300);
-    await typeHumanLike(page, password);
-    await debugSnapshot(page, 'after_password', isHeadless);
-    
-    // Ruch przed submit
     await cursor.actions.move({ x: 500 + Math.random() * 150, y: 350 + Math.random() * 100 });
-    await page.waitForTimeout(isHeadless ? 300 : 200);
+    await page.waitForTimeout(80 + Math.random() * 120);
     
-    // ========== KROK 4: SUBMIT ==========
+    // KROK 3: HASŁO
+    console.log('✏️ Hasło...');
+    await waitAndClick(page, cursor, 'input[type="password"]', 'PASSWORD');
+    await page.waitForTimeout(150);
+    await typeHumanLike(page, password);
+    
+    await cursor.actions.move({ x: 520 + Math.random() * 120, y: 380 + Math.random() * 80 });
+    await page.waitForTimeout(80 + Math.random() * 120);
+    
+    // KROK 4: SUBMIT (Start trial)
     console.log('🔵 SUBMIT...');
-    
-    // Próba 1: Tekst przycisku
-    let submitSuccess = false;
     try {
-      await waitAndClick(page, cursor, 'button:has-text("Start your 14-day free trial")', 'SUBMIT_BTN', 2, isHeadless);
-      submitSuccess = true;
+      await waitAndClick(page, cursor, 'button:has-text("Start your 14-day free trial")', 'SUBMIT', 5000);
     } catch (e) {
-      console.log('⚠️ Metoda 1 nieudana, próbuję type=submit...');
-    }
-    
-    // Próba 2: Typ submit
-    if (!submitSuccess) {
-      try {
-        const submitBtns = await page.$$('button[type="submit"]');
-        if (submitBtns.length > 0) {
-          const box = await submitBtns[0].boundingBox();
-          if (box) {
-            await clickWithRandomOffset(cursor, box, [100, 300]);
-            submitSuccess = true;
-            console.log('✅ Kliknięto type=submit');
-          }
-        }
-      } catch (e2) {
-        console.log('❌ Submit failed:', e2.message);
+      const submitBtn = await page.$('button[type="submit"]');
+      if (submitBtn) {
+        const box = await submitBtn.boundingBox();
+        if (box) await clickWithRandomOffset(cursor, box, [100, 300]);
       }
     }
     
-    // Czekaj na przejście
     console.log('⏳ Czekam na załadowanie...');
-    await page.waitForLoadState('domcontentloaded', { timeout: 20000 });
-    await page.waitForTimeout(isHeadless ? 2000 : 1000);
-    await debugSnapshot(page, 'after_submit', isHeadless);
+    await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    await page.waitForTimeout(1500);
     
-    // ========== KROK 5: COOKIES ==========
+    // KROK 5: COOKIES (opcjonalnie)
     try {
-      console.log('🍪 Cookies...');
-      const cookieBtn = await page.waitForSelector('button:has-text("Allow all")', { 
-        timeout: isHeadless ? 5000 : 3000,
-        state: 'visible'
-      });
-      
+      const cookieBtn = await page.waitForSelector('button:has-text("Allow all")', { timeout: 3000 });
       if (cookieBtn) {
-        const cookieBox = await cookieBtn.boundingBox();
-        if (cookieBox) {
-          await clickWithRandomOffset(cursor, cookieBox, [50, 200]);
-          await page.waitForTimeout(500);
-          console.log('✅ Cookies OK!');
+        const box = await cookieBtn.boundingBox();
+        if (box) {
+          await clickWithRandomOffset(cursor, box, [50, 200]);
+          console.log('🍪 Cookies OK');
         }
       }
-    } catch (e) {
-      console.log('ℹ️ Brak cookies modal');
-    }
+    } catch (e) { }
     
-    await page.waitForTimeout(isHeadless ? 2000 : 1000);
-    await debugSnapshot(page, 'after_cookies', isHeadless);
-    
-    // Ruch myszy
     await cursor.actions.move({ x: 450 + Math.random() * 200, y: 300 + Math.random() * 150 });
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(80 + Math.random() * 120);
     
-    // ========== KROK 6: POLA TEKSTOWE ==========
+    // KROK 6: POLA TEKSTOWE (imię, nazwisko, company)
     console.log('✏️ Imię, Nazwisko, Company...');
+    await page.waitForTimeout(1000);
     
-    // Dłuższy timeout na pola w headless
-    await page.waitForTimeout(isHeadless ? 3000 : 1500);
-    
-    const allInputs = await page.$$('input');
-    const textInputs = [];
-    
-    for (const input of allInputs) {
-      const type = await input.getAttribute('type');
-      if (type === 'text') {
-        textInputs.push(input);
-      }
-    }
-    
+    const textInputs = await page.$$('input[type="text"]');
     console.log(`📋 Pól TEXT: ${textInputs.length}`);
     
     if (textInputs.length >= 3) {
@@ -380,118 +215,51 @@ async function runPhantombusterScript(webhookURL = null) {
       const box1 = await textInputs[0].boundingBox();
       if (box1) {
         await clickWithRandomOffset(cursor, box1, [100, 250]);
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(150);
         await typeHumanLike(page, firstName);
       }
       
       await cursor.actions.move({ x: 480 + Math.random() * 150, y: 320 + Math.random() * 120 });
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(80 + Math.random() * 120);
       
       // Pole 2 - Nazwisko
       console.log('✏️ Pole 2 (nazwisko)...');
       const box2 = await textInputs[1].boundingBox();
       if (box2) {
         await clickWithRandomOffset(cursor, box2, [100, 250]);
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(150);
         await typeHumanLike(page, lastName);
       }
       
       await cursor.actions.move({ x: 520 + Math.random() * 120, y: 360 + Math.random() * 100 });
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(80 + Math.random() * 120);
       
       // Pole 3 - Company
       console.log('✏️ Pole 3 (company)...');
       const box3 = await textInputs[2].boundingBox();
       if (box3) {
         await clickWithRandomOffset(cursor, box3, [100, 250]);
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(150);
         await typeHumanLike(page, 'none');
       }
       
       console.log('✅ Wszystkie pola OK!');
-    } else {
-      console.log('⚠️ Za mało pól tekstowych!');
     }
     
-    await debugSnapshot(page, 'after_text_fields', isHeadless);
-    
-    // Ruch przed Sign Up
     await cursor.actions.move({ x: 560 + Math.random() * 150, y: 420 + Math.random() * 100 });
-    await page.waitForTimeout(isHeadless ? 400 : 300);
+    await page.waitForTimeout(80 + Math.random() * 120);
     
-    // ========== KROK 7: SIGN UP ==========
+    // KROK 7: SIGN UP - OSTATNI KROK!
     console.log('🔵 SIGN UP...');
-    await waitAndClick(page, cursor, 'button:has-text("Sign up")', 'SIGNUP_BTN', 3, isHeadless);
+    await waitAndClick(page, cursor, 'button:has-text("Sign up")', 'SIGNUP');
     
-    // ========== KROK 8: PYTANIA ==========
-    console.log('📋 Pytania...');
-    await page.waitForTimeout(isHeadless ? 2000 : 1000);
-    await debugSnapshot(page, 'questions_page', isHeadless);
+    // KONIEC - czekaj 5 sek i zamknij
+    console.log('⏳ Czekam 5 sekund...');
+    await page.waitForTimeout(5000);
     
-    const radioButtons = await page.$$('input[type="radio"]');
-    
-    if (radioButtons.length > 0) {
-      console.log(`❓ ${radioButtons.length} opcji`);
-      
-      await cursor.actions.move({ x: 480 + Math.random() * 200, y: 350 + Math.random() * 180 });
-      await page.waitForTimeout(isHeadless ? 500 : 300);
-      
-      for (const radio of radioButtons) {
-        const parent = await radio.evaluateHandle(el => el.parentElement);
-        const text = await parent.textContent();
-        
-        if (text && !text.toLowerCase().includes('other')) {
-          console.log(`✅ Wybieram: ${text.trim()}`);
-          const radioBox = await radio.boundingBox();
-          if (radioBox) {
-            await clickWithRandomOffset(cursor, radioBox, [100, 250]);
-          }
-          break;
-        }
-      }
-      
-      await page.waitForTimeout(isHeadless ? 800 : 500);
-      
-      const nextBtn = await page.$('button:has-text("Continue"), button:has-text("Next"), button:has-text("Submit")');
-      if (nextBtn) {
-        const nextBox = await nextBtn.boundingBox();
-        if (nextBox) {
-          await clickWithRandomOffset(cursor, nextBox, [100, 250]);
-          console.log('✅ Pytania OK!');
-        }
-      }
-    }
-    
-    await page.waitForTimeout(isHeadless ? 2000 : 1000);
-    await debugSnapshot(page, 'after_questions', isHeadless);
-    
-    // ========== KROK 9: BROWSE ==========
-    console.log('🔍 Browse Phantoms...');
-    const browseBtn = await page.$('a:has-text("Browse"), button:has-text("Browse")');
-    
-    if (browseBtn) {
-      const box = await browseBtn.boundingBox();
-      if (box) {
-        await clickWithRandomOffset(cursor, box, [100, 250]);
-        console.log('✅ Kliknięto Browse!');
-      }
-    } else {
-      console.log('⚠️ Nie znaleziono Browse, próbuję URL...');
-      await page.goto('https://phantombuster.com/phantombuster', { timeout: 20000 });
-    }
-    
-    await page.waitForTimeout(isHeadless ? 2000 : 1000);
-    
-    const finalUrl = page.url();
-    console.log('🌐 Final URL:', finalUrl);
-    
-    await debugSnapshot(page, 'final_page', isHeadless);
-    
-    // Pobierz cookies
+    // Pobierz cookies przed zamknięciem
     const cookies = await context.cookies();
-    const cookieString = cookies
-      .map(cookie => `${cookie.name}=${cookie.value}`)
-      .join('; ');
+    const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
     
     await browser.close();
     
@@ -501,50 +269,30 @@ async function runPhantombusterScript(webhookURL = null) {
     console.log('✅ KONTO UTWORZONE POMYŚLNIE!');
     console.log(`✅ Czas wykonania: ${executionTime}s`);
     console.log('✅ ========================================');
-    console.log('🍪 Cookies count:', cookies.length);
     
     return {
       email,
       password,
       firstName,
       lastName,
-      finalUrl,
-      cookies: cookies,
-      cookieString: cookieString,
+      cookies,
+      cookieString,
       cookiesCount: cookies.length,
       executionTime: `${executionTime}s`,
       message: 'Konto PhantomBuster utworzone pomyślnie'
     };
     
   } catch (error) {
-    console.error('❌ BŁĄD KRYTYCZNY:', error.message);
-    console.log('🔍 Stack:', error.stack);
-    
-    // Final debug snapshot
-    try {
-      await debugSnapshot(page, 'CRITICAL_ERROR', isHeadless);
-    } catch (e) {
-      console.log('⚠️ Nie można zrobić error snapshot');
-    }
-    
+    console.error('❌ BŁĄD:', error.message);
     await browser.close();
-    
     throw new Error(`Błąd podczas tworzenia konta: ${error.message}`);
   }
 }
 
 module.exports = { runPhantombusterScript };
 
-// Test lokalny
 if (require.main === module) {
-  console.log('🚀 Uruchamiam test...');
   runPhantombusterScript()
-    .then(result => {
-      console.log('✅ GOTOWE!', result);
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('❌ BŁĄD:', error);
-      process.exit(1);
-    });
+    .then(result => { console.log('✅ GOTOWE!', result); process.exit(0); })
+    .catch(error => { console.error('❌ BŁĄD:', error); process.exit(1); });
 }
